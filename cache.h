@@ -98,10 +98,7 @@ struct cache_ARC
         erase_elem_T(it_list_delete_elem->first, it_list_delete_elem, TLRU);
     }
 
-
-
-    template <typename F>
-    bool lookup_update(S s, key_S key, F slow_get_page)
+    bool lookup_update(S s, key_S key)
     {
         hash_it_T it_hash = cache_map_T.find(key);
 
@@ -166,5 +163,7 @@ struct cache_ARC
         }
 
         push_T(s, key, TLRU, { .LRU = true, .LFU = false });
+
+        return false;
     }
 };
