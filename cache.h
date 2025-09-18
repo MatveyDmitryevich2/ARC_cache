@@ -17,7 +17,9 @@ struct cache_ARC
     using list_it_T = typename std::list<std::pair<key_S, S>>::iterator;
     using list_it_B = typename std::list<key_S>::iterator;
     
-    size_t max_size_TLRU, max_size_TLFU, max_size_B;
+    size_t max_size_TLRU;
+    size_t max_size_TLFU;
+    size_t max_size_B;
     
     explicit cache_ARC(size_t sz_T, size_t sz_B) : max_size_TLRU(sz_T),
                                                    max_size_TLFU(sz_T),
@@ -35,8 +37,8 @@ struct cache_ARC
     using hash_it_B = typename std::unordered_map<key_S, std::pair<list_it_B, Page_info>>::iterator;
 
     bool is_full_T(std::list<std::pair<key_S,
-                   S>> list, size_t max_size_list)              { return list.size == max_size_list; }
-    bool is_full_B(std::list<key_S> list, size_t max_size_list) { return list.size == max_size_list; }
+                   S>> list, size_t max_size_list)              { return list.size() == max_size_list; }
+    bool is_full_B(std::list<key_S> list, size_t max_size_list) { return list.size() == max_size_list; }
 
     void erase_elem_T(key_S key, list_it_T it_list, std::list<std::pair<key_S, S>>& list)
     {
@@ -44,7 +46,7 @@ struct cache_ARC
         list.erase(it_list);
     }
 
-    void erase_elem_B(key_S key, list_it_T it_list, std::list<key_S>& list)
+    void erase_elem_B(key_S key, list_it_B it_list, std::list<key_S>& list)
     {
         cache_map_B.erase(key);
         list.erase(it_list);
@@ -98,13 +100,14 @@ struct cache_ARC
         erase_elem_T(it_list_delete_elem->first, it_list_delete_elem, TLRU);
     }
 
-    bool lookup_update(S s, key_S key)
+    template <typename F>
+    bool lookup_update(key_S key, F slow_get_page)
     {
         hash_it_T it_hash = cache_map_T.find(key);
 
-        if ((it_hash != cache_map_T.end()) && (it_hash->second->second.LRU))
+        if ((it_hash != cache_map_T.end()) && (it_hash->second.second.LRU))
         {
-            list_it_T it_list = it_hash->second->first;
+            list_it_T it_list = it_hash->second.first;
 
             if (is_full_T(TLFU, max_size_TLFU)) { drop_last_elem_T2(); }
 
@@ -113,56 +116,56 @@ struct cache_ARC
             return true;
         }
 
-        if ((it_hash != cache_map_T.end()) && (it_hash->second->second.LFU))
+        if ((it_hash != cache_map_T.end()) && (it_hash->second.second.LFU))
         {
-            list_it_T it_list = it_hash->second->first;
+            list_it_T it_list = it_hash->second.first;
             
-            if (it_list != TLFU.begin()) { TLFU.splice(TLFU.begin, TLFU, it_list); }
+            if (it_list != TLFU.begin()) { TLFU.splice(TLFU.begin(), TLFU, it_list); }
 
             return true;
         }
 
         hash_it_B it_hash_B = cache_map_B.find(key);
 
-        if ((it_hash_B != cache_map_B.end()) && (it_hash->second->second.LRU))
+        if ((it_hash_B != cache_map_B.end()) && (it_hash->second.second.LRU))
         {
-            list_it_B it_list = it_hash_B->second->first;
-
-            erase_elem_B(key, it_list, BLRU);
+            list_it_B it_list = it_hash_B->second.first;
 
             if (is_full_T(TLFU, max_size_TLFU)) { drop_last_elem_T2(); }
 
-            push_T(it_list->second, it_list->first, TLFU);
+            push_T(slow_get_page(*it_list), *it_list, TLFU, { .LRU = false, .LFU = true });
+ 
+            erase_elem_B(key, it_list, BLRU); 
 
             max_size_TLRU++;
 
             if (is_full_T(TLFU, max_size_TLFU)) { drop_last_elem_T2(); }
 
-            max_size_TLFU--;
+            if (max_size_TLFU > 1) { max_size_TLFU--; }
 
             return false;
         }
 
-        if ((it_hash_B != cache_map_B.end()) && (it_hash->second->second.LFU))
+        if ((it_hash_B != cache_map_B.end()) && (it_hash->second.second.LFU))
         {
-            list_it_B it_list = it_hash_B->second->first;
+            list_it_B it_list = it_hash_B->second.first;
+            
+            if (is_full_T(TLFU, max_size_TLFU)) { drop_last_elem_T2(); }
+            
+            push_T(slow_get_page(*it_list), *it_list, TLFU, { .LRU = false, .LFU = true });
 
             erase_elem_B(key, it_list, BLFU);
-
-            if (is_full_T(TLFU, max_size_TLFU)) { drop_last_elem_T2(); }
-
-            push_T(it_list->second, it_list->first, TLFU);
 
             max_size_TLFU++;
 
             if (is_full_T(TLRU, max_size_TLRU)) { drop_last_elem_T1(); }
 
-            max_size_TLRU--;
+            if (max_size_TLRU > 1) { max_size_TLRU--; }
             
             return false;
         }
 
-        push_T(s, key, TLRU, { .LRU = true, .LFU = false });
+        push_T(slow_get_page(key), key, TLRU, { .LRU = true, .LFU = false });
 
         return false;
     }

@@ -6,7 +6,9 @@
 
 #include "cache.h"
 
-int main (int argc, char* argv[])
+int slow_get_page(int key);
+
+int main ([[maybe_unused]] int /*argc*/, char* argv[])
 {
     int cache_hit = 0;
 
@@ -20,10 +22,15 @@ int main (int argc, char* argv[])
 
     for (int i = 0; i < razmer_spiska_stranic; i++)
     {
-        cache_hit += cache.lookup_update(std::stoi(argv[i + 3]), std::stoi(argv[i + 3]));
+        cache_hit += cache.lookup_update(std::stoi(argv[i + 3]), slow_get_page);//slow get page
     }
 
     std::cout << "cache_hit =" << cache_hit << "\n";
 
     return 0;
+}
+
+int slow_get_page(int key)
+{
+    return key;
 }
