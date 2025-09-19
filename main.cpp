@@ -4,9 +4,9 @@
 #include <list>
 #include <vector>
 
-#include "cache.h"
+#include "cache_ARC.hpp"
 
-int slow_get_page(int key);
+int SlowGetPage(int key);
 
 int main ([[maybe_unused]] int /*argc*/, char* argv[])
 {
@@ -18,11 +18,11 @@ int main ([[maybe_unused]] int /*argc*/, char* argv[])
     int razmer_spiska_stranic = std::stoi(argv[2]);
 
     std::vector<int> spisok_strnic(razmer_spiska_stranic);
-    cache_ARC<int, int> cache(razmer_T, razmer_B);
+    cacheARC<int, int> cache(razmer_T, razmer_B);
 
     for (int i = 0; i < razmer_spiska_stranic; i++)
     {
-        cache_hit += cache.lookup_update(std::stoi(argv[i + 3]), slow_get_page);//slow get page
+        cache_hit += cache.LookupUpdate(std::stoi(argv[i + 3]), SlowGetPage);//slow get page
     }
 
     std::cout << "cache_hit =" << cache_hit << "\n";
@@ -30,7 +30,7 @@ int main ([[maybe_unused]] int /*argc*/, char* argv[])
     return 0;
 }
 
-int slow_get_page(int key)
+int SlowGetPage(int key)
 {
     return key;
 }
