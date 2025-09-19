@@ -18,7 +18,7 @@ int main ([[maybe_unused]] int /*argc*/, char* argv[])
     int razmer_spiska_stranic = std::stoi(argv[2]);
 
     std::vector<int> spisok_strnic(razmer_spiska_stranic);
-    cacheARC<int, int> cache(razmer_T, razmer_B);
+    CacheARC<int, int> cache(razmer_T, razmer_B);
 
     for (int i = 0; i < razmer_spiska_stranic; i++)
     {
