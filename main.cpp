@@ -20,9 +20,9 @@ int main ([[maybe_unused]] int /*argc*/, char* argv[])
     std::vector<int> spisok_strnic(razmer_spiska_stranic);
     CacheARC<int, int> cache(razmer_T, razmer_B);
 
-    for (int i = 0; i < razmer_spiska_stranic; i++)
+    for (int i = 0; i < razmer_spiska_stranic; i++) 
     {
-        cache_hit += cache.LookupUpdate((std::stoi(argv[i + 3]))/2, SlowGetPage);//slow get page
+        cache_hit += cache.LookupUpdate((std::stoi(argv[i + 3])), SlowGetPage);//slow get page
     }
 
     std::cout << "cache_hit =" << cache_hit << "\n";

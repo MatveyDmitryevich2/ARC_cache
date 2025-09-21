@@ -18,7 +18,7 @@ class CacheBeladi
     Hash cache_map;
     List list;
 
-    CacheARC(size_t sz) //тут чо
+    CacheARC(size_t sz, ) //тут чо
         : max_size_list{sz}
     {}
 
@@ -46,6 +46,6 @@ class CacheBeladi
     template <typename F>
     bool LookupUpdate(KeyS key, F SlowGetPage)
     {
-        
+
     }
 };
