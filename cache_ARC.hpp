@@ -33,7 +33,7 @@ class CacheARC
 
         Ghost(size_t sz_B) : max_size_B(sz_B) {}
 
-        bool IsFull(GhostList list, size_t max_size_list) { return list.size() >= max_size_list; }
+        bool IsFull(const GhostList& list, size_t max_size_list) const { return list.size() >= max_size_list; }
                     
         void EraseElemB(KeyU key, GhostListIt it_list, GhostList* list)
         {
@@ -72,7 +72,7 @@ class CacheARC
 
         Target(size_t sz_T) : max_size_TLFU(sz_T), max_size_TLRU(sz_T) {}
 
-        bool IsFull(TargetList list, size_t max_size_list) { return list.size() >= max_size_list; }
+        bool IsFull(const TargetList& list, size_t max_size_list) const { return list.size() >= max_size_list; }
         
         void EraseElemT(KeyU key, TargetListIt it_list, TargetList* list)
         {
@@ -101,9 +101,6 @@ class CacheARC
 
     void IfPageInTargetLru(KeyU key, Target::TargetMapIt target_map_it)
     {
-        typename Target::TargetListIt it_list = target_map_it->second.first;
-        ValU s = it_list->second;
-
         if (target.IsFull(target.target_lfu, target.max_size_TLFU)) 
         {
             CachePair cache_pair = target.DropLastElem(&target.target_lfu);
@@ -113,12 +110,9 @@ class CacheARC
         }
 
         target_map_it = target.target_map.find(key);
-        if (target_map_it != target.target_map.end())
-        {
-            typename Target::TargetListIt it_list = target_map_it->second.first;
-            target.target_lfu.splice(target.target_lfu.begin(), target.target_lru, it_list);
-        }
-        else { target.Push(s, key, &target.target_lfu, PageInfo::LFU); }
+        typename Target::TargetListIt it_list = target_map_it->second.first;
+        target.target_lfu.splice(target.target_lfu.begin(), target.target_lru, it_list);
+        target_map_it->second.second = PageInfo::LFU;
     }
 
     void IfPageInTargetLfu(Target::TargetMapIt target_map_it)
@@ -142,11 +136,8 @@ class CacheARC
 
         target.Push(SlowGetPage(key), key, &target.target_lfu, PageInfo::LFU);
         ghost_map_it = ghost.ghost_map.find(key);
-        if (ghost_map_it != ghost.ghost_map.end())
-        {
-            typename Ghost::GhostListIt it_list = ghost_map_it->second.first;
-            ghost.EraseElemB(key, it_list, &ghost.ghost_lfu);
-        }
+        typename Ghost::GhostListIt it_list = ghost_map_it->second.first;
+        ghost.EraseElemB(key, it_list, &ghost.ghost_lru);
 
         target.max_size_TLRU++;
 
@@ -225,7 +216,7 @@ class CacheARC
         {
             if (target_map_it->second.second == PageInfo::LRU)
             {
-                IfPageInTargetLru (key, target_map_it);
+                IfPageInTargetLru(key, target_map_it);
                 return true;
             }
 
