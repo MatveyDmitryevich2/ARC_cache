@@ -16,8 +16,10 @@ class CacheBelady
     using ListIt = typename List::iterator;
     using Hash   = typename std::unordered_map<KeyU, ListIt>;
     using HashIt = typename Hash::iterator;
+    using PageIt = typename std::vector<KeyU>::iterator;
     
     std::vector<KeyU> pages;
+    PageIt page_iterator;
     Hash cache_map;
     List list;
 
@@ -51,26 +53,20 @@ class CacheBelady
 
     KeyU FindFarthestPage()
     {
-        FarthestPage farthest_elem = { .key = 0, .distance_to_page = 0 };
+        FarthestPage farthest_elem = { .distance_to_page = 0 };
+        
         for (HashIt cache_map_it = cache_map.begin(); cache_map_it != cache_map.end(); cache_map_it++)
         {
-            KeyU key = cache_map_it->first;
-
             size_t distance = 0;
+            KeyU key = cache_map_it->first;
+            PageIt it = page_iterator;
+            for ( ; (it != pages.end()) && (*it != key); it++) { distance++; }
 
-            VecIt key_it = std::ranges::find(pages, key);
-            if (key_it != pages.end()) 
-            {
-                for(VecIt it = pages.begin(); it != key_it; it++) { distance++; }
-            }
+            if (it == pages.end()) { return key; }
             else
             {
-                return key;
-            }
-
-            if (farthest_elem.distance_to_page < distance)
-            {
-                farthest_elem = { .key = key, .distance_to_page = distance };
+                if (farthest_elem.distance_to_page < distance)
+                    farthest_elem = { .key = key, .distance_to_page = distance };
             }
         }
 
@@ -79,9 +75,10 @@ class CacheBelady
 
     public:
     
-    CacheBelady(size_t size, std::vector<KeyU> requested_pages)//тут надо изменить
+    CacheBelady(size_t size, std::vector<KeyU> requested_pages)
         : max_size_list{size},
-        pages{requested_pages}
+        pages{requested_pages},
+        page_iterator{pages.begin()}
     {}
 
     template <typename F>
@@ -90,6 +87,7 @@ class CacheBelady
         HashIt cache_map_it = cache_map.find(key);
         if (cache_map_it != cache_map.end()) 
         {
+            page_iterator++;
             return true; 
         }
         
@@ -104,8 +102,7 @@ class CacheBelady
             ValU s = SlowGetPage(key);
             Push(s, key);
 
-            pages.erase(pages.begin());
-
+            page_iterator++;
             return false;
         }
     }
