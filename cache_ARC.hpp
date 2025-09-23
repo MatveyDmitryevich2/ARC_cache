@@ -35,6 +35,7 @@ class CacheARC
         Ghost(size_t ghost_size) : max_size(ghost_size) {}
 
         bool IsFull(const GhostList& list, size_t max_size_list) const { return list.size() >= max_size_list; }
+
         bool IsFullLru() { return IsFull(ghost_lru, max_size); }
         bool IsFullLfu() { return IsFull(ghost_lfu, max_size); }
 
