@@ -25,14 +25,7 @@ class CacheBelady
     {
         KeyU key;
         size_t distance_to_page;
-    }
-
-    CacheBelady(size_t sise, std::initializer_list<key> requested_pages)
-        : max_size_list{size}
-        pages(requested_pages)
-    {}
-
-    std::vector<KeyU>::iterator CurrentPage;
+    };
 
     bool IsFull() { return list.size() == max_size_list; }
 
@@ -53,20 +46,22 @@ class CacheBelady
     {
         HashIt cache_map_it = cache_map.find(key);
         ListIt it_list_delete_elem = cache_map_it->second;
-        EraseElem(it_list_delete_elem->first, it_list_delete_elem);
+        EraseElem(key, it_list_delete_elem);
     }
 
     KeyU FindFarthestPage()
     {
-        FarthestPage farthest_elem = { .key = 0, .distance_to_page = -1; }
+        FarthestPage farthest_elem = { .key = 0, .distance_to_page = 0 };
         for (HashIt cache_map_it = cache_map.begin(); cache_map_it != cache_map.end(); cache_map_it++)
         {
             KeyU key = cache_map_it->first;
 
+            size_t distance = 0;
+
             VecIt key_it = std::ranges::find(pages, key);
             if (key_it != pages.end()) 
             {
-                for(size_t distance = 0, VecIt it = pages.begin(); it != key_it; it++; distance++) {}
+                for(VecIt it = pages.begin(); it != key_it; it++) { distance++; }
             }
             else
             {
@@ -75,12 +70,19 @@ class CacheBelady
 
             if (farthest_elem.distance_to_page < distance)
             {
-                farthest_elem = { .key = key, .distance_to_page = distance; }
+                farthest_elem = { .key = key, .distance_to_page = distance };
             }
         }
 
         return farthest_elem.key;
     }
+
+    public:
+    
+    CacheBelady(size_t size, std::vector<KeyU> requested_pages)//тут надо изменить
+        : max_size_list{size},
+        pages{requested_pages}
+    {}
 
     template <typename F>
     bool LookupUpdate(KeyU key, F SlowGetPage)
@@ -101,6 +103,8 @@ class CacheBelady
 
             ValU s = SlowGetPage(key);
             Push(s, key);
+
+            pages.erase(pages.begin());
 
             return false;
         }

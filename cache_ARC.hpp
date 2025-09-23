@@ -222,7 +222,7 @@ class CacheARC
     Target target;
 
     CacheARC(size_t target_size, size_t ghost_size)
-        : ghost {ghost_size},
+        : ghost{ghost_size},
         target{target_size} 
     {}
 
