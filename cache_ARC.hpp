@@ -157,8 +157,6 @@ class CacheARC
         typename Ghost::GhostListIt it_list = ghost_map_it->second.first;
         ghost.EraseElem(key, it_list, &ghost.ghost_lru);
 
-        target.max_size_lru++;
-
         if (target.max_size_lfu > 1)
         {
             if (target.IsFullLfu())
@@ -169,7 +167,8 @@ class CacheARC
                 ghost.Push(cache_pair.first, &ghost.ghost_lfu, PageInfo::LFU);
             }
 
-            target.max_size_lfu--;
+            ++target.max_size_lru;
+            --target.max_size_lfu;
         }
     }
 
@@ -192,8 +191,6 @@ class CacheARC
             ghost.EraseElem(key, it_list, &ghost.ghost_lfu);
         }
 
-        target.max_size_lfu++;
-
         if (target.max_size_lru > 1)
         {
             if (target.IsFullLru())
@@ -205,7 +202,8 @@ class CacheARC
                 ghost.Push(cache_pair.first, &ghost.ghost_lru, PageInfo::LRU);
             }
 
-            target.max_size_lru--;
+            ++target.max_size_lfu;
+            --target.max_size_lru;
         }
     }
 
@@ -213,6 +211,16 @@ class CacheARC
     void PageNotFound(KeyU key, F SlowGetPage)
     {
         ValU s = SlowGetPage(key);
+
+        if (target.IsFullLru())
+            {
+                CachePair cache_pair = target.DropLastElem(&target.target_lru);
+
+                if (ghost.IsFullLru())
+                    ghost.DropLastElem(&ghost.ghost_lru);
+                ghost.Push(cache_pair.first, &ghost.ghost_lru, PageInfo::LRU);
+            }
+        
         target.Push(s, key, &target.target_lru, PageInfo::LRU);
     }
 

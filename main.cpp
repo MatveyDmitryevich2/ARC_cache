@@ -16,7 +16,7 @@ int main ()
 
     for (size_t i = 0; i < number_of_pages; i++) { std::cin >> pages[i]; }
 
-    CacheARC<int, int> cache_arc(size_cache/2, size_cache/2);
+    CacheARC<int, int> cache_arc(size_cache/2 + size_cache % 2, size_cache/2);
     CacheBelady<int, int> cache_belady(size_cache, pages);
 
     size_t cache_hit_arc    = 0;
