@@ -1,9 +1,8 @@
 #pragma once
 
-#include <iostream>
-#include <string>
 #include <unordered_map>
 #include <list>
+#include <vector>
 
 template <typename ValU, typename KeyU>
 class CacheBelady

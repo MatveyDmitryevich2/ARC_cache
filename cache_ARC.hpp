@@ -1,7 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <string>
 #include <unordered_map>
 #include <list>
 #include <cassert>
@@ -190,8 +188,8 @@ class CacheARC
             typename Ghost::GhostListIt it_list = ghost_map_it->second.first;
             ghost.EraseElem(key, it_list, &ghost.ghost_lfu);
         }
-
-        if (target.max_size_lru > 1)
+        //член какой то тут 
+        if (target.max_size_lru > 1) 
         {
             if (target.IsFullLru())
             {
@@ -213,21 +211,21 @@ class CacheARC
         ValU s = SlowGetPage(key);
 
         if (target.IsFullLru())
-            {
-                CachePair cache_pair = target.DropLastElem(&target.target_lru);
+        {
+            CachePair cache_pair = target.DropLastElem(&target.target_lru);
 
-                if (ghost.IsFullLru())
-                    ghost.DropLastElem(&ghost.ghost_lru);
-                ghost.Push(cache_pair.first, &ghost.ghost_lru, PageInfo::LRU);
-            }
+            if (ghost.IsFullLru())
+                ghost.DropLastElem(&ghost.ghost_lru);
+            ghost.Push(cache_pair.first, &ghost.ghost_lru, PageInfo::LRU);
+        }
         
         target.Push(s, key, &target.target_lru, PageInfo::LRU);
     }
 
-    public:
-
     Ghost ghost;
     Target target;
+
+    public:
 
     CacheARC(size_t target_size, size_t ghost_size)
         : ghost{ghost_size},

@@ -9,7 +9,8 @@ int SlowGetPage(int key);
 
 int main ()
 {
-    size_t size_cache, number_of_pages;
+    size_t size_cache = 0;
+    size_t number_of_pages = 0;
     std::cin >> size_cache >> number_of_pages;
 
     std::vector<int> pages(number_of_pages);
