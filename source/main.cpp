@@ -8,14 +8,13 @@
 
 int SlowGetPage(int key);
 
-int main(int argc, char* argv[])
+int main()
 {
-    std::ifstream stream_in(argv[1]);
     size_t size_cache = 0;
     size_t number_of_pages = 0;
-    stream_in >> size_cache >> number_of_pages;
+    std::cin >> size_cache >> number_of_pages;
     std::vector<int> pages(number_of_pages);
-    for (size_t i = 0; i < number_of_pages; i++) { stream_in >> pages[i]; }
+    for (size_t i = 0; i < number_of_pages; i++) { std::cin >> pages[i]; }
 
     size_t cache_hit = 0;
 
