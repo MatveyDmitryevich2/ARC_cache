@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <list>
 #include <vector>
+#include <queue>
+#include <utility>
 
 template <typename ValU, typename KeyU>
 class CacheBelady
@@ -12,13 +14,13 @@ class CacheBelady
     using InfoNextUsePage = typename std::unordered_map<KeyU, size_t>;
     using InfoNextUsePageIt = InfoNextUsePage::iterator;
     using Table = typename std::unordered_map<KeyU, std::vector<size_t>>;
-    using PqElem = typename std::pair<size_t , keyU>;
+    using PqElem = typename std::pair<size_t, KeyU>;
     struct NextUseMax
     {
-        bool operator()(PqElem a, PqElem b) { return a.first < b.first }
+        bool operator()(PqElem a, PqElem b) noexcept { return a.first < b.first; }
     };
     using Pq = typename std::priority_queue<PqElem, std::vector<PqElem>, NextUseMax>;
-    using PageIt = typename std::vector<KeyU>::iterator;
+    using PageIt = typename std::vector<KeyU>::reverse_iterator;
 
     Pq pq;
     Hash cache;
@@ -28,12 +30,13 @@ class CacheBelady
     std::vector<KeyU> pages;
     const size_t no_next_use;
 
-    void FillingOutTable(const std::vector<KeyU>& pages)// FIXME проверить
+    void FillingOutTable()
     {
-        for (size_t it = pages.size(); PageIt i = pages.rbegin(); i != pages.rend(); i++)
+        size_t i = pages.size();
+        for (PageIt it = pages.rbegin(); it != pages.rend(); ++it)
         {
-            --it;
-            page_position_table[pages[*i]].push_back(it);
+            --i;
+            page_position_table[*it].push_back(i);
         }
     }
 
@@ -43,7 +46,7 @@ class CacheBelady
         : max_size_cache{size},
         pages{requested_pages},
         no_next_use{pages.size()}
-    { FillingOutTable(pages); }
+    { FillingOutTable(); }
 
     template <typename F>
     bool LookupUpdate(KeyU key, F SlowGetPage)
@@ -73,15 +76,15 @@ class CacheBelady
         if (cache.size() != max_size_cache)
         {
             ValU s = SlowGetPage(key);
-            cache.insert(key, s);
-            next_in_page.insert(key, next_use_key);
+            cache.insert({key, s});
+            next_in_page.insert({key, next_use_key});
             pq.push({next_use_key, key});
 
             return false;
         }
         else
         {
-            while (pq.empty() != false)
+            while (!pq.empty())
             {
                 PqElem top_elem = pq.top();
                 KeyU key_top = top_elem.second;
@@ -101,8 +104,8 @@ class CacheBelady
             }
             
             ValU s = SlowGetPage(key);
-            cache.insert(key, s);
-            next_in_page.insert(key, next_use_key);
+            cache.insert({key, s});
+            next_in_page.insert({key, next_use_key});
             pq.push({next_use_key, key});
 
             return false;
