@@ -3,6 +3,7 @@
 #include <vector>
 #include <fstream>
 #include <limits>
+#include <utility>
 
 #include "cache_ARC.hpp"
 #include "cache_Belady.hpp"

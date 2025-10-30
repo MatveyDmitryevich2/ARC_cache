@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <list>
 #include <cassert>
+#include <utility>
 
 namespace cache
 {
@@ -42,8 +43,8 @@ class CacheARC
 
         Ghost(size_t ghost_size) : max_size(ghost_size) {}
 
-        bool IsFullLru() { return IsFull(ghost_lru, max_size); }
-        bool IsFullLfu() { return IsFull(ghost_lfu, max_size); }
+        bool IsFullLru() const { return IsFull(ghost_lru, max_size); }
+        bool IsFullLfu() const { return IsFull(ghost_lfu, max_size); }
 
         void EraseElem(KeyU key, GhostListIt it_list, GhostList* list)
         {
@@ -125,8 +126,8 @@ class CacheARC
 
         Target(size_t target_size) : max_size_lfu(target_size), max_size_lru(target_size) {}
 
-        bool IsFullLru() { return IsFull(target_lru, max_size_lru); }
-        bool IsFullLfu() { return IsFull(target_lfu, max_size_lfu); }
+        bool IsFullLru() const { return IsFull(target_lru, max_size_lru); }
+        bool IsFullLfu() const { return IsFull(target_lfu, max_size_lfu); }
         
         void EraseElem(KeyU key, TargetListIt it_list, TargetList* list)
         {
@@ -301,19 +302,19 @@ class CacheARC
             case PageType::LRU:
             {
                 return IfPageInTargetLru(key);
-            } break;
+            }
 
             case PageType::LFU:
             {
                 return target.IfPageInTargetLfu(key);
-            } break;
+            }
 
             case PageType::NOTFOUND:
             {
                 return nullptr;
-            } break;
+            }
         }
-        return nullptr;
+        std::unreachable();
     }
 
     template <typename F>

@@ -1,5 +1,5 @@
 add_library(flags INTERFACE)
-target_compile_features(flags INTERFACE cxx_std_20)
+target_compile_features(flags INTERFACE cxx_std_23)
 
 target_compile_options(flags INTERFACE
     -fdiagnostics-color=always
