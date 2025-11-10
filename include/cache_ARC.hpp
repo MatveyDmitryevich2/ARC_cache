@@ -25,7 +25,8 @@ class CacheARC
     {
         using GhostList   = typename std::list<KeyU>;
         using GhostListIt = typename GhostList::iterator;
-        using GhostMap    = typename std::unordered_map<KeyU, std::pair<GhostListIt, PageType>>;
+        using GhostMap    = typename std::unordered_map<KeyU,
+                                     std::pair<GhostListIt, PageType>>;
         using GhostMapIt  = typename GhostMap::iterator;
 
         private:
@@ -37,7 +38,8 @@ class CacheARC
 
         GhostMap  ghost_map;
 
-        bool IsFull(const GhostList& list, size_t max_size_list) const { return list.size() >= max_size_list; }
+        bool IsFull(const GhostList& list, size_t max_size_list) const
+                   { return list.size() >= max_size_list; }
 
         public: 
 
@@ -54,30 +56,28 @@ class CacheARC
             list->erase(it_list);
         }
 
-        void DropLastElemLru()
+        void DropLastElem(PageType page_type)
         {
-            GhostListIt it_list_delete_elem = --(ghost_lru.end());
-            EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lru);
+            assert(page_type != PageType::NOTFOUND);
+
+            if(page_type == PageType::LRU)
+            {
+                GhostListIt it_list_delete_elem = --(ghost_lru.end());
+                EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lru);
+            }
+            else
+            {
+                GhostListIt it_list_delete_elem = --(ghost_lfu.end());
+                EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lfu);
+            }
         }
 
-        void DropLastElemLfu()
+        void Push(KeyU key, PageType page_type)
         {
-            GhostListIt it_list_delete_elem = --(ghost_lfu.end());
-            EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lfu);
-        }
-
-        void PushLru(KeyU key)
-        {
-            ghost_lru.push_front(key);
-            GhostListIt list_it = ghost_lru.begin();
-            ghost_map.insert({ key, { list_it, PageType::LRU } });
-        }
-
-        void PushLfu(KeyU key)
-        {
-            ghost_lfu.push_front(key);
-            GhostListIt list_it = ghost_lfu.begin();
-            ghost_map.insert({ key, { list_it, PageType::LFU } });
+            GhostList&  list = (page_type == PageType::LRU) ? ghost_lru : ghost_lfu;
+            list.push_front(key);
+            GhostListIt list_it = list.begin();
+            ghost_map.insert({ key, { list_it, page_type } });
         }
 
         void Remove(KeyU key)
@@ -108,7 +108,8 @@ class CacheARC
     {
         using TargetList   = typename std::list<std::pair<KeyU, ValU>>;
         using TargetListIt = typename TargetList::iterator;
-        using TargetMap    = typename std::unordered_map<KeyU, std::pair<TargetListIt, PageType>>;
+        using TargetMap    = typename std::unordered_map<KeyU,
+                                      std::pair<TargetListIt, PageType>>;
         using TargetMapIt  = typename TargetMap::iterator;
         private:
 
@@ -120,11 +121,13 @@ class CacheARC
 
         TargetMap target_map;
 
-        bool IsFull(const TargetList& list, size_t max_size_list) const { return list.size() >= max_size_list; }
+        bool IsFull(const TargetList& list, size_t max_size_list) const
+                   { return list.size() >= max_size_list; }
 
         public:
 
-        Target(size_t target_size) : max_size_lfu(target_size), max_size_lru(target_size) {}
+        Target(size_t target_size) : max_size_lfu(target_size),
+                                     max_size_lru(target_size) {}
 
         bool IsFullLru() const { return IsFull(target_lru, max_size_lru); }
         bool IsFullLfu() const { return IsFull(target_lfu, max_size_lfu); }
@@ -137,40 +140,30 @@ class CacheARC
             list->erase(it_list);
         }
 
-        CachePair DropLastElemLru()
+        CachePair DropLastElem(PageType page_type)
         {
-            TargetListIt it_list_delete_elem = --(target_lru.end());
+            assert(page_type != PageType::NOTFOUND);
+
+            TargetListIt it_list_delete_elem = (page_type == PageType::LRU) ? 
+                                               --(target_lru.end()) :
+                                               --(target_lfu.end());
 
             CachePair cache_pair = *it_list_delete_elem;
 
-            EraseElem(it_list_delete_elem->first, it_list_delete_elem, &target_lru);
+            if (page_type == PageType::LRU)
+                EraseElem(it_list_delete_elem->first, it_list_delete_elem, &target_lru);
+            else
+                EraseElem(it_list_delete_elem->first, it_list_delete_elem, &target_lfu);
 
             return cache_pair;
         }
 
-        CachePair DropLastElemLfu()
+        void Push(KeyU key, ValU val, PageType page_type)
         {
-            TargetListIt it_list_delete_elem = --(target_lfu.end());
-
-            CachePair cache_pair = *it_list_delete_elem;
-
-            EraseElem(it_list_delete_elem->first, it_list_delete_elem, &target_lfu);
-
-            return cache_pair;
-        }
-
-        void PushLru(KeyU key, ValU val)
-        {
-            target_lru.push_front({ key, val });
-            TargetListIt list_it = target_lru.begin();
-            target_map.insert({ key, { list_it, PageType::LRU } });
-        }
-
-        void PushLfu(KeyU key, ValU val)
-        {
-            target_lfu.push_front({ key, val });
-            TargetListIt list_it = target_lfu.begin();
-            target_map.insert({ key, { list_it, PageType::LFU } });
+            TargetList& list = (page_type == PageType::LRU) ? target_lru : target_lfu;
+            list.push_front({ key, val });
+            TargetListIt list_it = list.begin();
+            target_map.insert({ key, { list_it, page_type } });
         }
 
         ValU* MoveLruToLfu(KeyU key)
@@ -228,10 +221,10 @@ class CacheARC
     {
         if (target.IsFullLfu()) 
         {
-            CachePair cache_pair = target.DropLastElemLfu();
+            CachePair cache_pair = target.DropLastElem(PageType::LFU);
             if (ghost.IsFullLfu())
-                ghost.DropLastElemLfu();
-            ghost.PushLfu(cache_pair.first);
+                ghost.DropLastElem(PageType::LFU);
+            ghost.Push(cache_pair.first, PageType::LFU);
         }
     }
 
@@ -239,10 +232,10 @@ class CacheARC
     {
         if (target.IsFullLru()) 
         {
-            CachePair cache_pair = target.DropLastElemLru();
+            CachePair cache_pair = target.DropLastElem(PageType::LRU);
             if (ghost.IsFullLru())
-                ghost.DropLastElemLru();
-            ghost.PushLru(cache_pair.first);
+                ghost.DropLastElem(PageType::LRU);
+            ghost.Push(cache_pair.first, PageType::LRU);
         }
     }
 
@@ -260,7 +253,7 @@ class CacheARC
 
         RemoveLastElemLfu();
 
-        target.PushLfu(key, SlowGetPage(key));
+        target.Push(key, SlowGetPage(key), PageType::LFU);
 
         target.MoveLocationTowardsLRU();
     }
@@ -272,7 +265,7 @@ class CacheARC
 
         RemoveLastElemLru();
 
-        target.PushLfu(key, SlowGetPage(key));
+        target.Push(key, SlowGetPage(key), PageType::LFU);
 
         target.MoveLocationTowardsLFU();
     }
@@ -282,7 +275,7 @@ class CacheARC
     {
         RemoveLastElemLru();
 
-        target.PushLru(key, SlowGetPage(key));
+        target.Push(key, SlowGetPage(key), PageType::LRU);
     }
 
     Ghost ghost;
