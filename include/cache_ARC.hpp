@@ -19,6 +19,35 @@ class CacheARC
         NOTFOUND = 3
     };
 
+    template <typename MapU, typename ListU>
+    static void EraseElem(MapU* map, KeyU key, ListU::iterator it_list, ListU* list)
+    {
+        assert(list != nullptr);
+
+        map->erase(key);
+        list->erase(it_list);
+    }
+
+    template <typename MapU>
+    static PageType FindOutWhereKey(MapU* map, KeyU key)
+    {
+        typename MapU::iterator map_it = map->find(key);
+        if (map_it == map->end())
+            return PageType::NOTFOUND;
+
+        return map_it->second.second;
+    }
+
+    template <typename MapU, typename ListU, typename ListArgU>
+    static void Push(MapU* map, ListArgU arg, KeyU key, PageType page_type,
+                     ListU* list_lru, ListU* list_lfu)
+    {
+        ListU* list = (page_type == PageType::LRU) ? list_lru : list_lfu;
+        list->push_front(arg);
+        typename ListU::iterator list_it = list->begin();
+        map->insert({ key, { list_it, page_type } });
+    }
+
     using CachePair = typename std::pair<KeyU, ValU>;
 
     struct Ghost
@@ -39,7 +68,7 @@ class CacheARC
         GhostMap  ghost_map;
 
         bool IsFull(const GhostList& list, size_t max_size_list) const
-                   { return list.size() >= max_size_list; }
+        { return list.size() >= max_size_list; }
 
         public: 
 
@@ -50,10 +79,7 @@ class CacheARC
 
         void EraseElem(KeyU key, GhostListIt it_list, GhostList* list)
         {
-            assert(list != nullptr);
-
-            ghost_map.erase(key);
-            list->erase(it_list);
+            return CacheARC::EraseElem(&ghost_map, key, it_list, list);
         }
 
         void DropLastElem(PageType page_type)
@@ -63,21 +89,18 @@ class CacheARC
             if(page_type == PageType::LRU)
             {
                 GhostListIt it_list_delete_elem = --(ghost_lru.end());
-                EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lru);
+                Ghost::EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lru);
             }
             else
             {
                 GhostListIt it_list_delete_elem = --(ghost_lfu.end());
-                EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lfu);
+                Ghost::EraseElem(*it_list_delete_elem, it_list_delete_elem, &ghost_lfu);
             }
         }
 
         void Push(KeyU key, PageType page_type)
         {
-            GhostList&  list = (page_type == PageType::LRU) ? ghost_lru : ghost_lfu;
-            list.push_front(key);
-            GhostListIt list_it = list.begin();
-            ghost_map.insert({ key, { list_it, page_type } });
+            return CacheARC::Push(&ghost_map, key, key, page_type, &ghost_lru, &ghost_lfu);
         }
 
         void Remove(KeyU key)
@@ -88,19 +111,15 @@ class CacheARC
                 typename Ghost::GhostListIt it_list = ghost_map_it->second.first;
                 PageType page_type = ghost_map_it->second.second;
                 if (page_type == PageType::LRU)
-                    EraseElem(key, it_list, &ghost_lru);
+                    Ghost::EraseElem(key, it_list, &ghost_lru);
                 else
-                    EraseElem(key, it_list, &ghost_lfu);
+                    Ghost::EraseElem(key, it_list, &ghost_lfu);
             }
         }
 
         PageType FindOutWhereKey(KeyU key)
         {
-            typename Ghost::GhostMapIt ghost_map_it = ghost_map.find(key);
-            if (ghost_map_it == ghost_map.end())
-                return PageType::NOTFOUND;
-
-            return ghost_map_it->second.second;
+            return CacheARC::FindOutWhereKey(&ghost_map, key);
         }
     };
 
@@ -122,7 +141,7 @@ class CacheARC
         TargetMap target_map;
 
         bool IsFull(const TargetList& list, size_t max_size_list) const
-                   { return list.size() >= max_size_list; }
+        { return list.size() >= max_size_list; }
 
         public:
 
@@ -134,10 +153,7 @@ class CacheARC
         
         void EraseElem(KeyU key, TargetListIt it_list, TargetList* list)
         {
-            assert(list != nullptr);
-
-            target_map.erase(key);
-            list->erase(it_list);
+            return CacheARC::EraseElem(&target_map, key, it_list, list);
         }
 
         CachePair DropLastElem(PageType page_type)
@@ -151,19 +167,19 @@ class CacheARC
             CachePair cache_pair = *it_list_delete_elem;
 
             if (page_type == PageType::LRU)
-                EraseElem(it_list_delete_elem->first, it_list_delete_elem, &target_lru);
+                Target::EraseElem(it_list_delete_elem->first, it_list_delete_elem,
+                                  &target_lru);
             else
-                EraseElem(it_list_delete_elem->first, it_list_delete_elem, &target_lfu);
+                Target::EraseElem(it_list_delete_elem->first, it_list_delete_elem,
+                                  &target_lfu);
 
             return cache_pair;
         }
 
         void Push(KeyU key, ValU val, PageType page_type)
         {
-            TargetList& list = (page_type == PageType::LRU) ? target_lru : target_lfu;
-            list.push_front({ key, val });
-            TargetListIt list_it = list.begin();
-            target_map.insert({ key, { list_it, page_type } });
+            return CacheARC::Push(&target_map, CachePair{key, val}, key, page_type,
+                                  &target_lru, &target_lfu);
         }
 
         ValU* MoveLruToLfu(KeyU key)
@@ -191,11 +207,7 @@ class CacheARC
 
         PageType FindOutWhereKey(KeyU key)
         {
-            typename Target::TargetMapIt target_map_it = target_map.find(key);
-            if (target_map_it == target_map.end())
-                return PageType::NOTFOUND;
-
-            return target_map_it->second.second;
+            return CacheARC::FindOutWhereKey(&target_map, key);
         }
 
         void MoveLocationTowardsLRU()
