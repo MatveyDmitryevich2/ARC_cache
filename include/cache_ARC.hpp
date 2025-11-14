@@ -48,6 +48,31 @@ class CacheARC
         map->insert({ key, { list_it, page_type } });
     }
 
+    template <typename FuncU>
+    void RemoveLastElem(FuncU Func, PageType type)
+    {
+        if ((target.*Func)()) 
+        {
+            CachePair cache_pair = target.DropLastElem(type);
+            if (ghost.IsFullLfu())
+                ghost.DropLastElem(type);
+            ghost.Push(cache_pair.first, type);
+        }
+    }
+
+    template <typename F, typename FuncIsFullU, typename FuncMoveU>
+    void IfPageInGhost(FuncIsFullU FuncIsFull, FuncMoveU FuncMove, KeyU key,
+                       F SlowGetPage, PageType type)
+    {
+        ghost.Remove(key);
+
+        RemoveLastElem(FuncIsFull, type);
+
+        target.Push(key, SlowGetPage(key), PageType::LFU);
+
+        (target.*FuncMove)();
+    }
+
     using CachePair = typename std::pair<KeyU, ValU>;
 
     struct Ghost
@@ -100,7 +125,8 @@ class CacheARC
 
         void Push(KeyU key, PageType page_type)
         {
-            return CacheARC::Push(&ghost_map, key, key, page_type, &ghost_lru, &ghost_lfu);
+            return CacheARC::Push(&ghost_map, key, key, page_type,
+                                  &ghost_lru, &ghost_lfu);
         }
 
         void Remove(KeyU key)
@@ -229,63 +255,17 @@ class CacheARC
         }
     };
 
-    void RemoveLastElemLfu()
-    {
-        if (target.IsFullLfu()) 
-        {
-            CachePair cache_pair = target.DropLastElem(PageType::LFU);
-            if (ghost.IsFullLfu())
-                ghost.DropLastElem(PageType::LFU);
-            ghost.Push(cache_pair.first, PageType::LFU);
-        }
-    }
-
-    void RemoveLastElemLru()
-    {
-        if (target.IsFullLru()) 
-        {
-            CachePair cache_pair = target.DropLastElem(PageType::LRU);
-            if (ghost.IsFullLru())
-                ghost.DropLastElem(PageType::LRU);
-            ghost.Push(cache_pair.first, PageType::LRU);
-        }
-    }
-
     ValU* IfPageInTargetLru(KeyU key)
     {
-        RemoveLastElemLfu();
+        RemoveLastElem(&Target::IsFullLfu, PageType::LFU);
 
         return target.MoveLruToLfu(key);
     }
 
     template <typename F>
-    void IfPageInGhostLru(KeyU key, F SlowGetPage)
-    {
-        ghost.Remove(key);
-
-        RemoveLastElemLfu();
-
-        target.Push(key, SlowGetPage(key), PageType::LFU);
-
-        target.MoveLocationTowardsLRU();
-    }
-
-    template <typename F>
-    void IfPageInGhostLfu(KeyU key, F SlowGetPage)
-    {
-        ghost.Remove(key);
-
-        RemoveLastElemLru();
-
-        target.Push(key, SlowGetPage(key), PageType::LFU);
-
-        target.MoveLocationTowardsLFU();
-    }
-
-    template <typename F>
     void IfPageNotFound(KeyU key, F SlowGetPage)
     {
-        RemoveLastElemLru();
+        RemoveLastElem(&Target::IsFullLru, PageType::LRU);
 
         target.Push(key, SlowGetPage(key), PageType::LRU);
     }
@@ -329,12 +309,14 @@ class CacheARC
         {
             case PageType::LRU:
             {
-                IfPageInGhostLru(key, SlowGetPage);
+                IfPageInGhost(&Target::IsFullLfu, &Target::MoveLocationTowardsLRU,
+                              key, SlowGetPage, PageType::LFU);
             } break;
 
             case PageType::LFU:
             {
-                IfPageInGhostLfu(key, SlowGetPage);
+                IfPageInGhost(&Target::IsFullLru, &Target::MoveLocationTowardsLFU,
+                              key, SlowGetPage, PageType::LRU);
             } break;
 
             case PageType::NOTFOUND:
